@@ -7,11 +7,12 @@
 # This function depends on the define_plotSpace, definedJitter, and colTransparency functions I've written.
 # NOTE: This default plotting space I've worked with will look nice at height = 16, width =32, for 6 different subX types and 2 categoricalX
 plot_completeScatter <- function(func_inData, func_plotY = 1, func_plotX = 2, func_subX =3, func_IDcol = 4, 
-									func_plotJitter = TRUE, func_jitterRange = c(-1,1), func_CIoppacity = 0.3,
+									func_plotJitter = TRUE, func_jitterRange = NULL, func_CIoppacity = 0.3,
 									func_plot_mfcol = c(1,1), func_plotMar = c(10,10,5,2)+0.1, func_plotCols = NULL,
 									func_xLab = "X Types", func_yLab = "Y Values", 
 									func_categoricalOrder = NULL, func_subOrder = NULL,
-									func_plotMean = TRUE, func_addLine = NULL, func_yRange = NULL, func_legendSpot = "topright",
+									func_plotMean = TRUE, func_addLine = NULL, func_yRange = NULL, 
+									func_legendSpot = "topright", func_legendArgs = NULL,
 									func_spaceParms = list("bufferPerc"=0.1,"bufferMax"=0.4,"bufferMin"=0.15,"scaleX"=20,
 															"mean"=c("lwd"=2,"col"="black"))){
 										
@@ -79,7 +80,7 @@ plot_completeScatter <- function(func_inData, func_plotY = 1, func_plotX = 2, fu
 									func_tmpBuffer_min = func_spaceParms[["bufferMin"]])
 	# Now if there has been now y-Range supplied, we'll use the data
 	if(is.null(func_yRange)){
-		func_yRange <- c(min(func_inData[, func_plotY]),max(func_inData[, func_plotY]))
+		func_yRange <- round(c(min(func_inData[, func_plotY]),max(func_inData[, func_plotY])),3)
 	}
 	
 	# These are parameters for the plot
@@ -105,39 +106,48 @@ plot_completeScatter <- function(func_inData, func_plotY = 1, func_plotX = 2, fu
 	for(this_categoryX in all_categoricalX){
 		func_categoryRows <- which(func_inData[, func_plotX] == this_categoryX)
 		# Now we subdivide by a secondary X-factor
-		for(this_subCategory in unique(func_inData[func_categoryRows, func_subX])){
-			# We define the rows for our sub-division
-			func_subRows <- func_categoryRows[which(as.character(func_inData[func_categoryRows, func_subX]) == this_subCategory)]
-			# We find how many unique ID's there are
-			func_theseIDs <- unique(func_inData[func_subRows, func_IDcol])
-			# We now define a vector of colours which is based on which of these rows is a unique genotype contruct
-			tmp_colVec <- func_plotCols[[this_categoryX]][unlist(lapply(func_inData[func_subRows, func_IDcol], function(x){ 
-													which(unique(func_inData[func_subRows, func_IDcol]) == x) }))]
-			# We now define the x-axis point for this mutant by background, found in our x-axis space lists, we also adjust this by our buffer space, use the Rows which were defined
-			# just prior to establishing the list's X space list (see order of columns sent to your call to define_plotSpace(func_subDivs....)
-			tmpPlot_xRange <- unlist(tmp_xAxis[[which(all_subX == this_subCategory)]][[which(all_categoricalX == this_categoryX)]])
-			tmpPlot_xRange <- c(tmpPlot_xRange[1] + max(func_spaceParms[["bufferMin"]], min(func_spaceParms[["bufferMax"]],(func_spaceParms[["bufferPerc"]] * (tmpPlot_xRange[2]-tmpPlot_xRange[1])))),
-									tmpPlot_xRange[2] - max(func_spaceParms[["bufferMin"]], min(func_spaceParms[["bufferMax"]],(func_spaceParms[["bufferPerc"]] * (tmpPlot_xRange[2]-tmpPlot_xRange[1])))))
-			tmpX <- mean(tmpPlot_xRange)
-			# As a visual convenience I 'll calculate the grand mean and SD values for these row
-			tmpValues <- c("Mean"= if(func_plotMean){mean(func_inData[func_subRows, func_plotY],na.rm=TRUE)}else{median(func_inData[func_subRows, func_plotY],na.rm=TRUE)},
-							"SD"= sd(func_inData[func_subRows, func_plotY],na.rm=TRUE))
-			
-			# We add a polygon of the CI and then the mean lines first so they are behind the points themselves
-			polygon(x=c(tmpPlot_xRange,rev(tmpPlot_xRange)),
-					y=c(rep(tmpValues["Mean"] - 1.96* tmpValues["SD"],2), rep(tmpValues["Mean"] + 1.96* tmpValues["SD"],2)),
-					col= colTransparency(func_plotCols[[this_categoryX]][1], func_CIoppacity))
-			lines(x= tmpPlot_xRange , y= rep(tmpValues["Mean"],2), 
-					col = func_spaceParms[["mean"]]["col"],lwd=func_spaceParms[["mean"]]["lwd"])
-			# Now we add points to out plot and colour each based on the mutant type
-			points(x=if(func_plotJitter){ definedJitter(length(func_subRows), if(is.null(func_jitterRange)){tmpPlot_xRange}else{func_jitterRange}) }else{ rep(tmpX,length(func_subRows)) },
-					y= func_inData[func_subRows, func_plotY],
-					col="black",pch=21,bg= tmp_colVec,cex=3.5)
+			if(length(func_categoryRows) > 0){
+			for(this_subCategory in unique(func_inData[func_categoryRows, func_subX])){
+				# We define the rows for our sub-division
+				func_subRows <- func_categoryRows[which(as.character(func_inData[func_categoryRows, func_subX]) == this_subCategory)]
+				if(length(func_subRows) > 0){
+					# We find how many unique ID's there are
+					func_theseIDs <- unique(func_inData[func_subRows, func_IDcol])					
+					# We now define a vector of colours which is based on which of these rows is a unique genotype contruct
+					tmp_colVec <- func_plotCols[[this_categoryX]][unlist(lapply(func_inData[func_subRows, func_IDcol], function(x){ 
+															which(unique(func_inData[func_subRows, func_IDcol]) == x) }))]
+					# We now define the x-axis point for this mutant by background, found in our x-axis space lists, we also adjust this by our buffer space, use the Rows which were defined
+					# just prior to establishing the list's X space list (see order of columns sent to your call to define_plotSpace(func_subDivs....)
+					tmpPlot_xRange <- unlist(tmp_xAxis[[which(all_subX == this_subCategory)]][[which(unique(func_inData[func_subRows, func_plotX]) == this_categoryX)]])
+					tmpPlot_xRange <- c(tmpPlot_xRange[1] + max(func_spaceParms[["bufferMin"]], min(func_spaceParms[["bufferMax"]],(func_spaceParms[["bufferPerc"]] * (tmpPlot_xRange[2]-tmpPlot_xRange[1])))),
+											tmpPlot_xRange[2] - max(func_spaceParms[["bufferMin"]], min(func_spaceParms[["bufferMax"]],(func_spaceParms[["bufferPerc"]] * (tmpPlot_xRange[2]-tmpPlot_xRange[1])))))
+					tmpX <- mean(tmpPlot_xRange)
+					# As a visual convenience I 'll calculate the grand mean and SD values for these row
+					tmpValues <- c("Mean"= if(func_plotMean){mean(func_inData[func_subRows, func_plotY],na.rm=TRUE)}else{median(func_inData[func_subRows, func_plotY],na.rm=TRUE)},
+									"SD"= sd(func_inData[func_subRows, func_plotY],na.rm=TRUE))
+					
+					# We add a polygon of the CI and then the mean lines first so they are behind the points themselves
+					polygon(x=c(tmpPlot_xRange,rev(tmpPlot_xRange)),
+							y=c(rep(tmpValues["Mean"] - 1.96* tmpValues["SD"],2), rep(tmpValues["Mean"] + 1.96* tmpValues["SD"],2)),
+							col= colTransparency(func_plotCols[[this_categoryX]][1], func_CIoppacity))
+					lines(x= tmpPlot_xRange , y= rep(tmpValues["Mean"],2), 
+							col = func_spaceParms[["mean"]]["col"],lwd=func_spaceParms[["mean"]]["lwd"])
+					# Now we add points to out plot and colour each based on the mutant type
+					points(x=if(func_plotJitter){ definedJitter(length(func_subRows), if(is.null(func_jitterRange)){tmpPlot_xRange}else{func_jitterRange}) }else{ rep(tmpX,length(func_subRows)) },
+							y= func_inData[func_subRows, func_plotY],
+							col="black",pch=21,bg= tmp_colVec,cex=3.5)
+				}
+			}
 		}
 	}
-	# We now create a legend, one for each background, for the colours used in our plot.		
-	legend(func_legendSpot, legend= unlist(lapply(all_categoricalX,function(thisSet){ paste(thisSet, 1:length(func_plotCols[[thisSet]]),sep =" ") })),
-			fill= unlist(func_plotCols), bty="n",cex=3, ncol = length(all_categoricalX))
+	# We now create a legend, one for each background, for the colours used in our plot.
+	# The user may define a particular legend, otherwise these defaults should be mostly appropriate.		
+	if(!is.null(func_legendArgs)){
+		do.call(legend, func_legendArgs)
+	} else {
+		legend(func_legendSpot, legend= unlist(lapply(all_categoricalX,function(thisSet){ paste(thisSet, 1:length(func_plotCols[[thisSet]]),sep =" ") })),
+				fill= unlist(func_plotCols), bty="n",cex=2, ncol = length(all_categoricalX))
+	}
 
 }
 
