@@ -19,14 +19,24 @@ plot_completeScatter <- function(func_inData, func_plotY = 1, func_plotX = 2, fu
 															"mean"=c("lwd"=2,"col"="black"))){
 										
 	# This creates a reference vector for our categorical types of X, order the factors based on a reference if one exists
-	# We also do the same for the sub-categories
+	# We also do the same for the sub-categories.  While updating the categoricals of the data, 
+	# we'll similarly update it but only if something different was passed
 	all_categoricalX <- as.character(unique(func_inData[, func_plotX]))
 	all_categoricalX <- factor(all_categoricalX,levels=if(!is.null(func_categoricalOrder)){func_categoricalOrder}else{unique(all_categoricalX)})
 	all_categoricalX <- all_categoricalX[order(all_categoricalX)]
+	if(!is.null(func_categoricalOrder)){
+		func_inData[, func_plotX] <- factor(as.character(func_inData[, func_plotX]), levels = func_categoricalOrder)
+		func_inData <- func_inData[order(func_inData[, func_plotX]),]
+	}
 	
 	all_subX <- as.character(unique(func_inData[, func_subX]))
 	all_subX <- factor(all_subX,levels=if(!is.null(func_subOrder)){func_subOrder}else{unique(all_subX)})
 	all_subX <- all_subX[order(all_subX)]
+	if(!is.null(func_subOrder)){
+		func_inData[, func_subX] <- factor(as.character(func_inData[, func_subX]), levels = func_subOrder)
+		func_inData <- func_inData[order(func_inData[,func_subX]),]
+	}
+	
 	
 	# We formalise the colour set to be plotted.  This uses the supplied values or draws from rainbow if nothing was supplied
 	# The point with the colours is to have the categorical types separated by colour, and then the replicates within sub-groups
